@@ -1,5 +1,7 @@
 #include <MaxMatrix.h>
 #include "Coordinates.h"
+#include "Animations.h"
+#include "WordsUtils.h"
 
 /* Define Game States */ 
 #define SHIP_PLACEMENT 0
@@ -15,42 +17,6 @@
 #define SLCT 11
 
 #define maxInUse 1
-
-/* Characters */
-const unsigned char A[] = {4, 8, B01111110, B00010001, B00010001, B01111110, B00000000};
-const unsigned char B[] = {4, 8, B01111111, B01001001, B01001001, B00110110, B00000000};
-const unsigned char C[] = {4, 8, B00111110, B01000001, B01000001, B00100010, B00000000};
-const unsigned char D[] = {4, 8, B01111111, B01000001, B01000001, B00111110, B00000000};
-const unsigned char E[] = {4, 8, B01111111, B01001001, B01001001, B01000001, B00000000};
-const unsigned char F[] = {4, 8, B01111111, B00001001, B00001001, B00000001, B00000000};
-const unsigned char G[] = {4, 8, B00111110, B01000001, B01001001, B01111010, B00000000};
-const unsigned char H[] = {4, 8, B01111111, B00001000, B00001000, B01111111, B00000000};
-const unsigned char I[] = {3, 8, B01000001, B01111111, B01000001, B00000000, B00000000};
-const unsigned char J[] = {4, 8, B00110000, B01000000, B01000001, B00111111, B00000000};
-const unsigned char K[] = {4, 8, B01111111, B00001000, B00010100, B01100011, B00000000};
-const unsigned char L[] = {4, 8, B01111111, B01000000, B01000000, B01000000, B00000000};
-const unsigned char M[] = {5, 8, B01111111, B00000010, B00001100, B00000010, B01111111};
-const unsigned char N[] = {5, 8, B01111111, B00000100, B00001000, B00010000, B01111111};
-const unsigned char O[] = {4, 8, B00111110, B01000001, B01000001, B00111110, B00000000};
-const unsigned char P[] = {4, 8, B01111111, B00001001, B00001001, B00000110, B00000000};
-const unsigned char Q[] = {4, 8, B00111110, B01000001, B01000001, B10111110, B00000000};
-const unsigned char R[] = {4, 8, B01111111, B00001001, B00001001, B01110110, B00000000};
-const unsigned char S[] = {4, 8, B01000110, B01001001, B01001001, B00110010, B00000000};
-const unsigned char T[] = {5, 8, B00000001, B00000001, B01111111, B00000001, B00000001};
-const unsigned char U[] = {4, 8, B00111111, B01000000, B01000000, B00111111, B00000000};
-const unsigned char V[] = {5, 8, B00001111, B00110000, B01000000, B00110000, B00001111};
-const unsigned char W[] = {5, 8, B00111111, B01000000, B00111000, B01000000, B00111111};
-const unsigned char X[] = {5, 8, B01100011, B00010100, B00001000, B00010100, B01100011};
-const unsigned char Y[] = {5, 8, B00000111, B00001000, B01110000, B00001000, B00000111};
-const unsigned char Z[] = {4, 8, B01100001, B01010001, B01001001, B01000111, B00000000};
-
-/* Words **/
-const int hitWordLength = 3;
-const unsigned char* hitWord[hitWordLength] = {H,I,T};
-const int winnerWordLength = 6;
-const unsigned char* winnerWord[winnerWordLength] = {W,I,N,N,E,R};
-const int loserWordLength = 5;
-const unsigned char* loserWord[loserWordLength] = {L,O,S,E,R};
 
 int currentState = SHIP_PLACEMENT;
 
@@ -81,8 +47,8 @@ Coordinate *attackedPositionsPlayer2[matrixSideSize * matrixSideSize];
 int attackedPositionsPlayer2Index = 0;
 byte remainingShipsPlayer2 = 0;
 
-byte value0 = 0;
-byte value1 = 0;
+byte valueX = 0;
+byte valueY = 0;
 byte valueSlct = 0;
 
 byte getXValue(Coordinate *coord);
@@ -127,8 +93,6 @@ void setup() {
   matrixPlayer2->clear();
 
   initializePositions();
-
-  
 }
 
 void loop() {
@@ -149,7 +113,7 @@ void loop() {
       gameWon(matrixPlayer1, matrixPlayer2);
     } else {
       gameWon(matrixPlayer2, matrixPlayer1);
-    } 
+    }
   }
 }
 
@@ -158,13 +122,13 @@ void loop() {
 ***********************/
 
 void shipPlacement(MaxMatrix* matrix, Coordinate* markedPositions[], byte &placedShips) {
-  value0 = digitalRead(BTN0);
-  value1 = digitalRead(BTN1);
+  valueX = digitalRead(BTN0);
+  valueY = digitalRead(BTN1);
   valueSlct = digitalRead(SLCT);
 
-  if (value0 == HIGH) {
+  if (valueX == HIGH) {
     calculateNextPossiblePosition(markedPositions, getXValue, setXValue, true);
-  } else if (value1 == HIGH) {
+  } else if (valueY == HIGH) {
     calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true);
   } else if (valueSlct == HIGH) {
     Coordinate *newCoordinate = copyCoordinate(currentPos);
@@ -267,8 +231,8 @@ Coordinate* copyCoordinate(Coordinate *coord) {
 ***********************/
 
 void shipAttack(MaxMatrix* matrixAttackingPlayer, Coordinate* attackedPositionsAttackingPlayer[], MaxMatrix* matrixAwatingPlayer, Coordinate* markedPositionsAwaitingPlayer[], int &attackingPositionsIndex, byte &remainingShips) {
-  value0 = digitalRead(BTN0);
-  value1 = digitalRead(BTN1);
+  valueX = digitalRead(BTN0);
+  valueY = digitalRead(BTN1);
   valueSlct = digitalRead(SLCT);
   
   if (justChangedTurn) {
@@ -282,9 +246,9 @@ void shipAttack(MaxMatrix* matrixAttackingPlayer, Coordinate* attackedPositionsA
     justChangedTurn = false;
     delay(300);
   }
-  if (value0 == HIGH) {
+  if (valueX == HIGH) {
     calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getXValue, setXValue, true);
-  } else if (value1 == HIGH) {
+  } else if (valueY == HIGH) {
     calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, true);
   } else if (valueSlct == HIGH) {
     Coordinate *newCoordinate = copyCoordinate(currentPos);
@@ -294,7 +258,8 @@ void shipAttack(MaxMatrix* matrixAttackingPlayer, Coordinate* attackedPositionsA
     if (hit) {
       animation_explotingBoat(matrixes);
       writeWordsSimultaneously(matrixAttackingPlayer, hitWord, hitWordLength, matrixAwatingPlayer, hitWord, hitWordLength);
-      //writeWord(matrixAttackingPlayer, hitWord);
+    } else {
+      writeWordsSimultaneously(matrixAttackingPlayer, missWord, missWordLength, matrixAwatingPlayer, missWord, missWordLength);
     }
     if (remainingShips > 0) {
       justChangedTurn = true;
@@ -327,132 +292,6 @@ bool calculateAttackedPosition(Coordinate *attackedCoord, Coordinate* otherPlaye
     }
   }
   return false;
-}
-
-const unsigned char bomb[] = {8,8,
-                              B00000000,
-                              B00000000,
-                              B01111101,
-                              B10000110,
-                              B10000110,
-                              B01111101,
-                              B00000000,
-                              B00000000};
-
-void animation_fallingBomb(MaxMatrix** matrixes) {
-  writeSpriteAndDelay(matrixes, bomb, 500);
-  int sizeOfMatrixes = sizeof(matrixes);
-  for(int i=0; i<8; i++) {
-    for(int m=0; m<sizeOfMatrixes; m++) {
-      matrixes[m]->shiftDown(false);
-    }
-    delay(250);
-  }
-}
-
-const unsigned char explotingBoat_0[] = {8,8,
-  B00110000,
-  B01010000,
-  B10010000,
-  B10010000,
-  B10011100,
-  B10010100,
-  B10011100,
-  B01110000};
-
-const unsigned char explotingBoat_1[] = {8,8,
-  B10000001,
-  B01011010,
-  B00100100,
-  B01011010,
-  B01011010,
-  B00100100,
-  B01011010,
-  B10000001
-};
-
-const unsigned char explotingBoat_2[] = {8,8,
-  B10111101,
-  B01000010,
-  B10011001,
-  B10100101,
-  B10100101,
-  B10011001,
-  B01000010,
-  B10111101};
-
-const unsigned char explotingBoat_3[] = {8,8,
-  B10111101,
-  B01000010,
-  B10000001,
-  B10000001,
-  B10000001,
-  B10000001,
-  B01000010,
-  B10111101};
-
-const unsigned char explotingBoat_4[] = {8,8,
-  B10000001,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B10000001};
-
-const unsigned char explotingBoat_5[] = {8,8,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000};
-
-void animation_explotingBoat(MaxMatrix** matrixes) {
-  writeSpriteAndDelay(matrixes, explotingBoat_0, 1000);
-  writeSpriteAndDelay(matrixes, explotingBoat_1, 250);
-  writeSpriteAndDelay(matrixes, explotingBoat_2, 250);
-  writeSpriteAndDelay(matrixes, explotingBoat_3, 250);
-  writeSpriteAndDelay(matrixes, explotingBoat_4, 250);
-  writeSpriteAndDelay(matrixes, explotingBoat_5, 1000);
-}
-
-void writeSpriteAndDelay(MaxMatrix** matrixes, const unsigned char* sprite, int aDelay) {
-  for(int i=0; i<sizeof(matrixes); i++) {
-      matrixes[i]->writeSprite(0,0,sprite);
-  }
-  delay(aDelay);
-}
-
-void writeWord(MaxMatrix* matrix, const unsigned char** wordToWrite) {
-  for(int i=0; i<=sizeof(wordToWrite); i++) {
-    matrix->clear();
-    delay(80);
-    const unsigned char* character = wordToWrite[i];
-    byte characterOffset = 3;
-    matrix->writeSprite(2, 0, character);
-    delay(500);
-  }
-}
-
-void writeWordsSimultaneously(MaxMatrix* matrixA, const unsigned char** wordA, int wordALength, MaxMatrix* matrixB, const unsigned char** wordB, int wordBLength) {
-  int longerWordLength = max(wordALength, wordBLength);
-
-  for(int i=0; i<=longerWordLength; i++) {
-    if (i<=wordALength) {
-      matrixA->writeSprite(2,0,wordA[i]);
-    }
-    if (i<=wordBLength) {
-      matrixB->writeSprite(2,0,wordB[i]);
-    }
-    delay(500);
-    matrixA->clear();
-    matrixB->clear();
-    delay(80);
-  }
 }
 
 /***********************
