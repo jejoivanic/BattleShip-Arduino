@@ -12,9 +12,11 @@
 #define matrixSideSize 8
 
 /* Define Inputs */
-#define BTN0 12
-#define BTN1 13
-#define SLCT 11
+#define BTN0 10
+#define BTN1 9
+#define BTN2 12
+#define BTN3 11
+#define SLCT 8
 
 #define maxInUse 1
 
@@ -28,9 +30,9 @@ Coordinate *currentPos = new Coordinate();
 Coordinate *nextPos = new Coordinate();
 
 /* Setup Player 1 */
-#define DIN_player1 5   // DIN pin of MAX7219 module
-#define CLK_player1 4   // CLK pin of MAX7219 module
-#define CS_player1  2   // CS  pin of MAX7219 module
+#define DIN_player1 2   // DIN pin of MAX7219 module
+#define CLK_player1 1   // CLK pin of MAX7219 module
+#define CS_player1  0   // CS  pin of MAX7219 module
 MaxMatrix *matrixPlayer1 = new MaxMatrix(DIN_player1, CS_player1, CLK_player1, maxInUse);
 Coordinate *markedPositionsPlayer1[availablePositionsAmount];
 Coordinate *attackedPositionsPlayer1[matrixSideSize * matrixSideSize];
@@ -38,17 +40,19 @@ int attackedPositionsPlayer1Index = 0;
 byte remainingShipsPlayer1 = 0;
 
 /* Setup Player 2 */
-#define DIN_player2 9   // DIN pin of MAX7219 module
-#define CLK_player2 8   // CLK pin of MAX7219 module
-#define CS_player2  7   // CS  pin of MAX7219 module
+#define DIN_player2 6   // DIN pin of MAX7219 module
+#define CLK_player2 5   // CLK pin of MAX7219 module
+#define CS_player2  4   // CS  pin of MAX7219 module
 MaxMatrix *matrixPlayer2 = new MaxMatrix(DIN_player2, CS_player2, CLK_player2, maxInUse);
 Coordinate *markedPositionsPlayer2[availablePositionsAmount];
 Coordinate *attackedPositionsPlayer2[matrixSideSize * matrixSideSize];
 int attackedPositionsPlayer2Index = 0;
 byte remainingShipsPlayer2 = 0;
 
-byte valueX = 0;
-byte valueY = 0;
+byte valueRight = 0;
+byte valueDown = 0;
+byte valueLeft = 0;
+byte valueUp = 0;
 byte valueSlct = 0;
 
 byte getXValue(Coordinate *coord);
@@ -56,10 +60,10 @@ void setXValue(Coordinate *coord, byte x);
 byte getYValue(Coordinate *coord);
 void setYValue(Coordinate *coord, byte y);
 
-byte calculateNextPossiblePosition(Coordinate *positions[], byte (*getValueFunction)(Coordinate*), void (*setValueFunction)(Coordinate*, byte), bool atLeastOneMove) {
+byte calculateNextPossiblePosition(Coordinate *positions[], byte (*getValueFunction)(Coordinate*), void (*setValueFunction)(Coordinate*, byte), bool atLeastOneMove, bool increase) {
   byte temporalMovingAxis = (*getValueFunction)(nextPos);
   while (isMarkedPosition(positions, nextPos) || atLeastOneMove) {
-    temporalMovingAxis = calculateNextIndex(temporalMovingAxis);
+    temporalMovingAxis = calculateNextIndex(temporalMovingAxis, increase);
     (*setValueFunction)(nextPos, temporalMovingAxis);
     atLeastOneMove = false;
   }
@@ -79,9 +83,11 @@ MaxMatrix* matrixes[] = {matrixPlayer1, matrixPlayer2};
 
 /* Game Initialization */
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
   pinMode(BTN0, INPUT);
   pinMode(BTN1, INPUT);
+  pinMode(BTN2, INPUT);
+  pinMode(BTN3, INPUT);
   pinMode(SLCT, INPUT);
 
   matrixPlayer1->init();
@@ -122,19 +128,25 @@ void loop() {
 ***********************/
 
 void shipPlacement(MaxMatrix* matrix, Coordinate* markedPositions[], byte &placedShips) {
-  valueX = digitalRead(BTN0);
-  valueY = digitalRead(BTN1);
+  valueRight = digitalRead(BTN0);
+  valueDown = digitalRead(BTN1);
+  valueLeft = digitalRead(BTN2);
+  valueUp   = digitalRead(BTN3);
   valueSlct = digitalRead(SLCT);
 
-  if (valueX == HIGH) {
-    calculateNextPossiblePosition(markedPositions, getXValue, setXValue, true);
-  } else if (valueY == HIGH) {
-    calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true);
+  if (valueRight == HIGH) {
+    calculateNextPossiblePosition(markedPositions, getXValue, setXValue, true, true);
+  } else if (valueDown == HIGH) {
+    calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true, true);
+  } else if (valueLeft == HIGH) {
+    calculateNextPossiblePosition(markedPositions, getXValue, setXValue, true, false);
+  } else if (valueUp == HIGH) {
+    calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true, false);
   } else if (valueSlct == HIGH) {
     Coordinate *newCoordinate = copyCoordinate(currentPos);
     markedPositions[placedShips++] = newCoordinate;
     setDot(matrix, currentPos, true);
-    calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true);
+    calculateNextPossiblePosition(markedPositions, getYValue, setYValue, true, true);
     markingMove = true;
   }
 
@@ -212,8 +224,17 @@ void setYValue(Coordinate *coord, byte y) {
   coord->setY(y);
 }
 
-byte calculateNextIndex (byte pos) {
-  return (pos + 1) % matrixSideSize;
+byte calculateNextIndex (byte pos, bool increase) {
+  if (increase) {
+    return (pos + 1) % matrixSideSize;
+  } else {
+    // TODO: Investigate more about this problem. Temporal solution.
+    if (pos == 0) {
+      return 7;
+    } else {
+      return (pos - 1) % matrixSideSize;
+    }
+  }
 }
 
 Coordinate* copyCoordinate(Coordinate *coord) {
@@ -231,8 +252,10 @@ Coordinate* copyCoordinate(Coordinate *coord) {
 ***********************/
 
 void shipAttack(MaxMatrix* matrixAttackingPlayer, Coordinate* attackedPositionsAttackingPlayer[], MaxMatrix* matrixAwatingPlayer, Coordinate* markedPositionsAwaitingPlayer[], int &attackingPositionsIndex, byte &remainingShips) {
-  valueX = digitalRead(BTN0);
-  valueY = digitalRead(BTN1);
+  valueRight = digitalRead(BTN0);
+  valueDown = digitalRead(BTN1);
+  valueLeft = digitalRead(BTN2);
+  valueUp   = digitalRead(BTN3);
   valueSlct = digitalRead(SLCT);
   
   if (justChangedTurn) {
@@ -241,15 +264,19 @@ void shipAttack(MaxMatrix* matrixAttackingPlayer, Coordinate* attackedPositionsA
     drawCoordinatesInMatrix(matrixAwatingPlayer, markedPositionsAwaitingPlayer, availablePositionsAmount);
     drawCoordinatesInMatrix(matrixAttackingPlayer, attackedPositionsAttackingPlayer, attackingPositionsIndex);
     initializePositions();
-    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, false);
+    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, false, true);
     updateCurrentPos();
     justChangedTurn = false;
     delay(300);
   }
-  if (valueX == HIGH) {
-    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getXValue, setXValue, true);
-  } else if (valueY == HIGH) {
-    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, true);
+  if (valueRight == HIGH) {
+    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getXValue, setXValue, true, true);
+  } else if (valueDown == HIGH) {
+    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, true, true);
+  } else if (valueLeft == HIGH) {
+    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getXValue, setXValue, true, false);
+  } else if (valueUp == HIGH) {
+    calculateNextPossiblePosition(attackedPositionsAttackingPlayer, getYValue, setYValue, true, false);
   } else if (valueSlct == HIGH) {
     Coordinate *newCoordinate = copyCoordinate(currentPos);
     attackedPositionsAttackingPlayer[attackingPositionsIndex++] = newCoordinate;
